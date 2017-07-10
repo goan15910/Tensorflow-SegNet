@@ -39,8 +39,8 @@ def _add_loss_summaries(total_loss):
   for l in losses + [total_loss]:
     # Name each loss as '(raw)' and name the moving average version of the loss
     # as the original loss name.
-    tf.scalar_summary(l.op.name +' (raw)', l)
-    tf.scalar_summary(l.op.name, loss_averages.average(l))
+    tf.summary.scalar(l.op.name +' (raw)', l)
+    tf.summary.scalar(l.op.name, loss_averages.average(l))
 
   return loss_averages_op
 
@@ -80,7 +80,7 @@ def _variable_with_weight_decay(name, shape, initializer, wd):
       shape,
       initializer)
   if wd is not None:
-    weight_decay = tf.mul(tf.nn.l2_loss(var), wd, name='weight_loss')
+    weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name='weight_loss')
     tf.add_to_collection('losses', weight_decay)
   return var
 
@@ -158,3 +158,20 @@ def per_class_acc(predictions, label_tensor):
         else:
           acc = np.diag(hist)[ii] / float(hist.sum(1)[ii])
         print("    class # %d accuracy = %f "%(ii,acc))
+
+def generate_pretrained_initializer(weight_npy):
+  """
+  Generate pretrained weight initializer from weights npy file
+  Args:
+    weight_npy: the ndarray of weights
+  Return:
+    init_dict: dictionary of each layer's initializers
+  """
+  w_dict = weight_npy.item()
+  init_dict = {}
+  for layer,params in w_dict.iteritems():
+    init = {}
+    init['conv'] = tf.constant_initializer(params['weights'], dtype=tf.float32)
+    init['bias'] = tf.constant_initializer(params['biases'], dtype=tf.float32)
+    init_dict[layer] = init
+  return init_dict
