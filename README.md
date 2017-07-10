@@ -15,21 +15,6 @@ tensorflow 1.0
 Pillow (optional, for write label image)
 scikit-image
 
-# Update
-
-Update to tf 1.0
-
-Finally get some time to refactor a bit, removing some un-used function and
-remove the hard-coded file path Now the model should be easy to config.
-The parameters can be found in main.py.
-
-I planned to add more feature such as dilation, multi-resolution, sequential learning..etc.
-Making it more like a "basic" segmentation toolbox and support more dataset as well.
-Therefore the model and documentation will be changed accordingly in the future.
-
-More utility function will be added and some messed coding style will be fixed.
-Any feature request is also welcomed.
-
 # Usage
 see also example.sh
 training:
