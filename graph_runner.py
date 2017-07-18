@@ -23,7 +23,8 @@ from Nets import nets_table
 class Graph_Runner:
   def __init__(self, FLAGS):
     # Setup from cfg
-    self.cfg = set_config(FLAGS.net, FLAGS.dataset)
+    cfg = set_config(FLAGS.net, FLAGS.dataset)
+    self.cfg = cfg
     self.batch_size = cfg.BATCH_SIZE
     self.image_h = cfg.IMAGE_HEIGHT
     self.image_w = cfg.IMAGE_WIDTH
@@ -31,7 +32,7 @@ class Graph_Runner:
     self.max_steps = cfg.MAX_STEPS
     
     # Setup from FLAGS
-    self.testing = FLAGS.testing
+    self.testing = True if FLAGS.testing else False
     self.log_dir = FLAGS.log_dir
     self.train_dir = FLAGS.image_dir
     self.val_dir = FLAGS.val_dir
@@ -74,29 +75,33 @@ class Graph_Runner:
     self.global_step = tf.Variable(0, trainable=False)
 
     # Setup reader
-    train_reader = Reader(cfg, self.image_dir, 'train')
+    train_reader = Reader(cfg, self.train_dir, 'train')
     val_reader = Reader(cfg, self.val_dir, 'val')
     test_reader = Reader(cfg, self.test_dir, 'test')
 
     # Setup input queues
     if not cfg.USE_LSTM:
-      self.train_queue = train_reader.batch_node()
-      self.val_queue = val_reader.batch_node()
-      self.test_queue = test_reader.batch_node()
+      if not self.testing:
+        self.train_queue = train_reader.batch_node()
+        self.val_queue = val_reader.batch_node()
+      else:
+        self.test_queue = test_reader.batch_node()
     else:
-      self.train_queue = train_reader.seq_batch_node()
-      self.val_queue = val_reader.seq_batch_node()
-      self.test_queue = test_reader.seq_batch_node()
+      if not self.testing:
+        self.train_queue = train_reader.seq_batch_node()
+        self.val_queue = val_reader.seq_batch_node()
+      else:
+        self.test_queue = test_reader.seq_batch_node()
       
     # Setup pretrained initializer
-    if pretrained_path is not None:
+    if self.pretrained_path is not None:
       pretrained_npy = np.load(pretrained_path)
       cfg.PRETRAINED_INITIALIZER = generate_pretrained_initializer(pretrained_npy)
 
     # Setup model graph
     self.model = nets_table[self.net_name](cfg)
     self.model.build()
-    self.train_op = model.train(self.global_step)
+    self.train_op = self.model.train(self.global_step)
 
     # Setup saver
     self.saver = tf.train.Saver(tf.global_variables())
@@ -116,16 +121,16 @@ class Graph_Runner:
     self.threads = tf.train.start_queue_runners(sess=self.sess, coord=self.coord)
 
     # Setup summary writer
-    self.summary_writer = tf.summary.FileWriter(self.log_dir, sess.graph)
+    self.summary_writer = tf.summary.FileWriter(self.log_dir, self.sess.graph)
     self.summary_op = tf.summary.merge_all()
 
     # Setup summary placeholders
     self.average_pl = tf.placeholder(tf.float32)
     self.acc_pl = tf.placeholder(tf.float32)
     self.iu_pl = tf.placeholder(tf.float32)
-    self.average_summary = tf.summary.scalar("test_average_loss", average_pl)
-    self.acc_summary = tf.summary.scalar("test_accuracy", acc_pl)
-    self.iu_summary = tf.summary.scalar("Mean_IU", iu_pl)
+    self.average_summary = tf.summary.scalar("test_average_loss", self.average_pl)
+    self.acc_summary = tf.summary.scalar("test_accuracy", self.acc_pl)
+    self.iu_summary = tf.summary.scalar("Mean_IU", self.iu_pl)
 
 
   def _close_runer(self):
@@ -247,12 +252,12 @@ class Graph_Runner:
         print "Start validating ..."
         total_val_loss = 0.0
         hist = np.zeros((cfg.NUM_CLASSES, cfg.NUM_CLASSES))
-        for test_step in range(cfg.TEST_ITER):
+        for test_step in range(cfg.VAL_ITER):
           val_loss, val_pred, val_labels = self._forward(self.val_queue, phase_train=True)
           total_val_loss += val_loss
           hist += get_hist(val_pred, val_labels)
 
-        avg_val_loss = total_val_loss / cfg.TEST_ITER
+        avg_val_loss = total_val_loss / cfg.VAL_ITER
         acc_total = np.diag(hist).sum() / hist.sum()
         iu = np.diag(hist) / (hist.sum(1) + hist.sum(0) - np.diag(hist))
         self._add_val_summary(avg_val_loss, acc_total, iu)

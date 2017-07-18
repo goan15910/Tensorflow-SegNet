@@ -51,10 +51,7 @@ class Reader:
     """Set the batch input node for graph"""
     # Set filename list
     image_filenames, label_filenames = self._get_fnames(self.image_dir)
-    image_filenames = ops.convert_to_tensor(image_filenames, dtype=dtypes.string)
-    label_filenames = ops.convert_to_tensor(label_filenames, dtype=dtypes.string)
     n_instances = len(image_filenames)
-    
 
     # Read in images for generating batch
     with tf.variable_scope('image_reader') as scope:

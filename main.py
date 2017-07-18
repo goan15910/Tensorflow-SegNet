@@ -9,7 +9,7 @@ tf.app.flags.DEFINE_string('pretrained', None, """ pretrained weight npy file pa
 tf.app.flags.DEFINE_float('learning_rate', "1e-3", """ initial lr """)
 tf.app.flags.DEFINE_string('net', "simple_segnet", """ used net name """)
 tf.app.flags.DEFINE_string('dataset', "camvid", """ used dataset """)
-tf.app.flags.DEFINE_string('log_dir', "/tmp3/jeff/TensorFlow/SegNet/", """ dir to store ckpt """)
+tf.app.flags.DEFINE_string('log_dir', "/tmp3/jeff/TensorFlow/Simple_SegNet/", """ dir to store ckpt """)
 tf.app.flags.DEFINE_string('image_dir', "/tmp3/jeff/CamVid/train.txt", """ path to CamVid image """)
 tf.app.flags.DEFINE_string('test_dir', "/tmp3/jeff/CamVid/test.txt", """ path to CamVid test image """)
 tf.app.flags.DEFINE_string('val_dir', "/tmp3/jeff/CamVid/val.txt", """ path to CamVid val image """)

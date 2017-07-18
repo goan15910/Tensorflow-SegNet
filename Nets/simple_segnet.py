@@ -37,16 +37,16 @@ class Simple_SegNet(Autoencoder):
     # Decoder
     with tf.variable_scope('decoder') as scope:
       upsample4 = self._deconv_layer(pool4, [2, 2, 64, 64], [self.batch_size, 45, 60, 64], 2, "up4")
-      conv_decode4 = self._conv_layer(upsample4, [7, 7, 64, 64], False, name="conv_decode4")
+      conv_decode4 = self._conv_layer(upsample4, [7, 7, 64, 64], act=False, name="conv_decode4")
     
       upsample3= self._deconv_layer(conv_decode4, [2, 2, 64, 64], [self.batch_size, 90, 120, 64], 2, "up3")
-      conv_decode3 = self._conv_layer(upsample3, [7, 7, 64, 64], False, name="conv_decode3")
+      conv_decode3 = self._conv_layer(upsample3, [7, 7, 64, 64], act=False, name="conv_decode3")
     
       upsample2= self._deconv_layer(conv_decode3, [2, 2, 64, 64], [self.batch_size, 180, 240, 64], 2, "up2")
-      conv_decode2 = self._conv_layer(upsample2, [7, 7, 64, 64], False, name="conv_decode2")
+      conv_decode2 = self._conv_layer(upsample2, [7, 7, 64, 64], act=False, name="conv_decode2")
     
       upsample1= self._deconv_layer(conv_decode2, [2, 2, 64, 64], [self.batch_size, 360, 480, 64], 2, "up1")
-      conv_decode1 = self._conv_layer(upsample1, [7, 7, 64, 64], False, name="conv_decode1")
+      conv_decode1 = self._conv_layer(upsample1, [7, 7, 64, 64], act=False, name="conv_decode1")
     
     # Classification
     # output predicted class number (6)
