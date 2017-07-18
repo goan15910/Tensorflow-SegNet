@@ -1,4 +1,5 @@
 from easydict import EasyDict as edict
+import numpy as np 
 
 def camvid_config(cfg):
 

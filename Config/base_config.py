@@ -16,6 +16,8 @@ cfg.LEARNING_RATE_DECAY_FACTOR = 0.1  # Learning rate decay factor.
 # Network hyper-parameters
 cfg.CONV_INIT_TYPE = 'orthogonal'
 cfg.PRETRAINED_INITIALIZER = None
+
+# LSTM
 cfg.USE_LSTM = False
 cfg.N_STATE = None
 cfg.SEQUENCE_LENGTH = None

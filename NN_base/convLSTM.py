@@ -115,7 +115,12 @@ class ConvLSTMCell(rnn_cell.RNNCell):
     return self._num_units
 
   def zero_state(self, batch_size=4, dtype=None):
-    return tf.zeros([batch_size, self._height, self._width, self._num_units*2])
+    c_zeros = tf.zeros([batch_size, self._height, self._width, self._num_units])
+    h_zeros = tf.zeros([batch_size, self._height, self._width, self._num_units])
+    if self._state_is_tuple:
+      return tf.stack([c_zeros, h_zeros])
+    else:
+      return tf.concat([c_zeros, h_zeros], axis=3)
 
   def __call__(self, inputs, state, scope=None):
     """Convolutional Long short-term memory cell (ConvLSTM)."""
@@ -123,13 +128,17 @@ class ConvLSTMCell(rnn_cell.RNNCell):
       if self._state_is_tuple:
         c, h = state
       else:
-        c, h = array_ops.split(3, 2, state)
+        c, h = array_ops.split(state, 2, 3)
 
       # batch_size * height * width * channel
+      print "inputs: {}".format(inputs.get_shape().as_list())
+      print "state: {}".format(state.get_shape().as_list())
+      print "c: {}".format(c.get_shape().as_list())
+      print "h: {}".format(h.get_shape().as_list())
       concat = _conv([inputs, h], 4 * self._num_units, self._k_size, True, initializer=self._initializer)
 
       # i = input_gate, j = new_input, f = forget_gate, o = output_gate
-      i, j, f, o = array_ops.split(3, 4, concat)
+      i, j, f, o = array_ops.split(concat, 4, 3)
 
       new_c = (c * sigmoid(f + self._forget_bias) + sigmoid(i) *
                self._activation(j))
@@ -138,7 +147,7 @@ class ConvLSTMCell(rnn_cell.RNNCell):
       if self._state_is_tuple:
         new_state = LSTMStateTuple(new_c, new_h)
       else:
-        new_state = array_ops.concat(3, [new_c, new_h])
+        new_state = array_ops.concat([new_c, new_h], axis=3)
       return new_h, new_state
 
 class LNConvLSTMCell(rnn_cell.RNNCell):
@@ -228,7 +237,7 @@ class LNConvLSTMCell(rnn_cell.RNNCell):
       if self._state_is_tuple:
         new_state = LSTMStateTuple(new_c, new_h)
       else:
-        new_state = array_ops.concat(3, [new_c, new_h])
+        new_state = array_ops.concat([new_c, new_h], axis=3)
       return new_h, new_state
 
 class MultiRNNCell(rnn_cell.RNNCell):
@@ -324,7 +333,7 @@ def _conv(args, output_size, k_size, bias=True, bias_start=0.0, initializer=None
     if len(args) == 1:
       res = tf.nn.conv2d(args[0], kernel, [1, 1, 1, 1], padding='SAME')
     else:
-      res = tf.nn.conv2d(array_ops.concat(3, args), kernel, [1, 1, 1, 1], padding='SAME')
+      res = tf.nn.conv2d(array_ops.concat(args, axis=3), kernel, [1, 1, 1, 1], padding='SAME')
 
     if not bias: return res
     bias_term = vs.get_variable( "Bias", [output_size],

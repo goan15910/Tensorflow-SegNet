@@ -10,8 +10,8 @@ from NN_base.convLSTM import ConvLSTMCell, ConvGRUCell
 
 
 class Simple_LSTM_SegNet(Autoencoder):
-  def __init__(self, mc, seq_len):
-    Autoencoder.__init__(self, mc, seq_len)
+  def __init__(self, mc):
+    Autoencoder.__init__(self, mc)
 
     # ConvLSTM parameters setup
     self.n_state = mc.N_STATE
@@ -20,11 +20,14 @@ class Simple_LSTM_SegNet(Autoencoder):
                              batch_size=self.batch_size, \
                              height=23, \
                              width=30, \
-                             initializer=self.conv_init)
+                             initializer=self.conv_init())
     self.state = None
 
     # Total loss initialization
     self.total_loss = 0.0
+
+    # Logtis sequence initialization
+    self.logits_seq = []
 
 
   def _loss(self, labels):
@@ -39,8 +42,8 @@ class Simple_LSTM_SegNet(Autoencoder):
 
       # Input normalize
       with tf.variable_scope('norm_input', reuse=lstm_reuse) as scope:
-      norm1 = tf.nn.lrn(self.image_seq_node[step], depth_radius=5, \
-                        bias=1.0, alpha=0.0001, beta=0.75, name='norm1')
+        norm1 = tf.nn.lrn(self.image_seq_node[:, step, ...], depth_radius=5, \
+                          bias=1.0, alpha=0.0001, beta=0.75, name='norm1')
 
       # Encoder
       pool4, _ = self._encoder(norm1, lstm_reuse)
@@ -62,10 +65,13 @@ class Simple_LSTM_SegNet(Autoencoder):
                                              wd=0.0005)
         conv = tf.nn.conv2d(conv_decode1, kernel, [1, 1, 1, 1], padding='SAME')
         biases = _variable_on_cpu('biases', [self.n_classes], tf.constant_initializer(0.0))
-        self.logits = tf.nn.bias_add(conv, biases, name=scope.name) # conv classifier logits
+        logits = tf.nn.bias_add(conv, biases, name=scope.name) # conv classifier logits
 
       # Total loss
-      self.total_loss += self._loss(self.label_seq_node[step])
+      self.total_loss += self._loss(self.label_seqs[:, step, ...])
+
+      # Logits seq
+      self.logits_seq.append(logits)
 
 
   def _encoder(self, inputT, reuse):
@@ -87,14 +93,14 @@ class Simple_LSTM_SegNet(Autoencoder):
   def _decoder(self, inputT, reuse):
     with tf.variable_scope('decoder', reuse=reuse) as scope:
       upsample4 = self._deconv_layer(inputT, [2, 2, 64, 64], [self.batch_size, 45, 60, 64], 2, "up4")
-      conv_decode4 = self._conv_layer(upsample4, [7, 7, 64, 64], False, name="conv_decode4")
+      conv_decode4 = self._conv_layer(upsample4, [7, 7, 64, 64], act=False, name="conv_decode4")
     
       upsample3= self._deconv_layer(conv_decode4, [2, 2, 64, 64], [self.batch_size, 90, 120, 64], 2, "up3")
-      conv_decode3 = self._conv_layer(upsample3, [7, 7, 64, 64], False, name="conv_decode3")
+      conv_decode3 = self._conv_layer(upsample3, [7, 7, 64, 64], act=False, name="conv_decode3")
     
       upsample2= self._deconv_layer(conv_decode3, [2, 2, 64, 64], [self.batch_size, 180, 240, 64], 2, "up2")
-      conv_decode2 = self._conv_layer(upsample2, [7, 7, 64, 64], False, name="conv_decode2")
+      conv_decode2 = self._conv_layer(upsample2, [7, 7, 64, 64], act=False, name="conv_decode2")
     
       upsample1= self._deconv_layer(conv_decode2, [2, 2, 64, 64], [self.batch_size, 360, 480, 64], 2, "up1")
-      conv_decode1 = self._conv_layer(upsample1, [7, 7, 64, 64], False, name="conv_decode1")
+      conv_decode1 = self._conv_layer(upsample1, [7, 7, 64, 64], act=False, name="conv_decode1")
     return conv_decode1

@@ -13,13 +13,14 @@ class VGG16_MR_SegNet(Autoencoder):
     Autoencoder.__init__(self, mc)
 
     # Downsample the labels
-    self.down_ksize = mc.down_sample_ratio
-    self.down_stride = mc.down_sample_ratio
-    labels = self._max_pool(tf.to_float(self.labels_node),
-                           self.down_ksize,
-                           self.down_stride,
-                           name='tmp_labels')
-    self.labels = tf.cast(labels, tf.int64, name='labels')
+    self.down_ksize = mc.DOWN_SAMPLE_RATIO
+    self.down_stride = mc.DOWN_SAMPLE_RATIO
+    with tf.variable_scope('label_resize') as scope:
+      labels = self._max_pool(tf.to_float(self.labels_node),
+                              self.down_ksize,
+                              self.down_stride,
+                              name='tmp_labels')
+      self.labels = tf.cast(labels, tf.int64, name='labels')
 
 
   def _loss(self, labels):
@@ -28,10 +29,12 @@ class VGG16_MR_SegNet(Autoencoder):
 
   def build(self):
     # Resize images
-    mr_images = self._max_pool(self.images_node, self.down_ksize, self.down_stride, name='mr_images')
+    with tf.variable_scope('image_resize') as scope:
+      mr_images = self._max_pool(self.images_node, self.down_ksize, self.down_stride, name='mr_images')
 
     # Input normalize
-    norm1 = tf.nn.lrn(mr_images, depth_radius=5, bias=1.0, alpha=0.0001, beta=0.75, name='norm1')
+    with tf.variable_scope('norm_input') as scope:
+      norm1 = tf.nn.lrn(mr_images, depth_radius=5, bias=1.0, alpha=0.0001, beta=0.75, name='norm1')
 
     # Encoder
     with tf.variable_scope('encoder') as scope:

@@ -10,21 +10,10 @@ from tensorflow.python.ops import gen_nn_ops
 # modules
 from Utils import _variable_with_weight_decay, _variable_on_cpu, _add_loss_summaries, _activation_summary
 
-""" legacy code for tf bug in missing gradient with max_pool_argmax """
-@ops.RegisterGradient("MaxPoolWithArgmax")
-def _MaxPoolWithArgmaxGrad(op, grad, unused_argmax_grad):
-  return gen_nn_ops._max_pool_grad(op.inputs[0],
-                                   op.outputs[0],
-                                   grad,
-                                   op.get_attr("ksize"),
-                                   op.get_attr("strides"),
-                                   padding=op.get_attr("padding"),
-                                   data_format='NHWC')
-
 
 class Autoencoder:
   """Base class of encoder-decoder NN skeleton"""
-  def __init__(self, mc, seq_len=None):
+  def __init__(self, mc):
     # Configuration setup
     self.n_classes = mc.NUM_CLASSES
     self.loss_weight = mc.LOSS_WEIGHT
@@ -35,7 +24,7 @@ class Autoencoder:
     self.img_c = mc.IMAGE_DEPTH
     self.batch_size = mc.BATCH_SIZE
     self.use_lstm = mc.USE_LSTM
-    self.seq_len = seq_len
+    self.seq_len = mc.SEQUENCE_LENGTH
     if self.use_lstm:
       assert self.seq_len is not None, \
           "To use LSTM, you need to specify sequence length!"
@@ -50,6 +39,7 @@ class Autoencoder:
           tf.int64, [self.batch_size, self.img_h, self.img_w, 1],
           name='labels_node'
       )
+      self.labels = self.labels_node
     else:
       self.image_seq_node = tf.placeholder(
           tf.float32, [self.batch_size, self.seq_len, self.img_h, self.img_w, self.img_c],
@@ -59,10 +49,8 @@ class Autoencoder:
           tf.int64, [self.batch_size, self.seq_len, self.img_h, self.img_w, 1],
           name='label_seq_node'
       )
+      self.label_seqs = self.label_seq_node
     self.phase_train = tf.placeholder(tf.bool, name='phase_train')
-
-    # Labels setup
-    self.labels = self.labels_node
 
     # Conv initializer setup
     assert mc.CONV_INIT_TYPE in ['msra', 'orthogonal']
@@ -75,7 +63,10 @@ class Autoencoder:
     self.pretrained_init = mc.PRETRAINED_INITIALIZER
 
     # Logits & loss initialization
-    self.logits = None
+    if not self.use_lstm:
+      self.logits = None
+    else:
+      self.logits_seq = None
     self.total_loss = None
 
 
@@ -128,7 +119,7 @@ class Autoencoder:
       return tf.truncated_normal_initializer(stddev=stddev)
 
 
-  def _orthogonal_initializer(self, scale = 1.1):
+  def _orthogonal_initializer(self, scale=1.1):
       """From Lasagne and Keras. Reference: Saxe et al., http://arxiv.org/abs/1312.6120"""
       def _initializer(shape, dtype=tf.float32, partition_info=None):
         flat_shape = (shape[0], np.prod(shape[1:]))
@@ -175,7 +166,7 @@ class Autoencoder:
     return loss
 
 
-  def _conv_layer(self, inputT, shape, stride=1, activation=True, batch_norm=True, name=None):
+  def _conv_layer(self, inputT, shape, stride=1, act=True, batch_norm=True, name=None):
     in_channel = shape[2]
     out_channel = shape[3]
     k_size = shape[0]
@@ -193,12 +184,13 @@ class Autoencoder:
       biases = _variable_on_cpu('biases', [out_channel], bias_init)
       bias = tf.nn.bias_add(conv, biases)
       if batch_norm is True:
-        bias = self._batch_norm(bias, self.phase_train, scope.name)
-      if activation is True:
-        conv_out = tf.nn.relu(self._batch_norm(bias, self.phase_train, scope.name))
+        bias = self._batch_norm(bias, self.phase_train)
+
+      if act is True:
         conv_out = tf.nn.relu(bias)
       else:
         conv_out = bias
+
     return conv_out
 
 
@@ -243,9 +235,11 @@ class Autoencoder:
            padding='SAME', name=name)
 
 
-  def _batch_norm(self, inputT, is_training, scope):
+  def _batch_norm(self, inputT, is_training):
     return tf.cond(is_training,
-            lambda: tf.contrib.layers.batch_norm(inputT, is_training=True,
-                             center=False, updates_collections=None, scope=scope+"_bn"),
-            lambda: tf.contrib.layers.batch_norm(inputT, is_training=False,
-                             updates_collections=None, center=False, scope=scope+"_bn", reuse = True))
+            lambda: tf.contrib.layers.batch_norm(inputT, is_training=True, \
+                             center=False, updates_collections=None, \
+                             scope="batch_norm", reuse=None),
+            lambda: tf.contrib.layers.batch_norm(inputT, is_training=False,\
+                             updates_collections=None, center=False, \
+                             scope="batch_norm", reuse=True))

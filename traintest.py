@@ -15,9 +15,8 @@ import skimage.io
 from easydict import EasyDict as edict
 # modules
 from Utils import _variable_on_cpu, _variable_with_weight_decay, print_hist_summery, get_hist, per_class_acc, writeImage, generate_pretrained_initializer
-from Inputs.reader import Reader
-from Config import model_config_table
-from Datasets import dataset_config_table
+from reader import Reader
+from Config import set_config
 from Nets import nets_table
 
 
@@ -79,14 +78,13 @@ def test(FLAGS):
 
 
 def training(FLAGS, is_finetune=False):
-  # Setup from mc
-  mc = model_config_table[FLAGS.net]
-  dc = dataset_config_table[FLAGS.dataset]
-  batch_size = mc.BATCH_SIZE
-  image_h = mc.IMAGE_HEIGHT
-  image_w = mc.IMAGE_WIDTH
-  image_c = mc.IMAGE_DEPTH
-  max_steps = mc.MAX_STEPS
+  # Setup from cfg
+  cfg = set_config(FLAGS.net, FLAGS.dataset)
+  batch_size = cfg.BATCH_SIZE
+  image_h = cfg.IMAGE_HEIGHT
+  image_w = cfg.IMAGE_WIDTH
+  image_c = cfg.IMAGE_DEPTH
+  max_steps = cfg.MAX_STEPS
 
   # Setup from FLAGS
   train_dir = FLAGS.log_dir
@@ -97,15 +95,12 @@ def training(FLAGS, is_finetune=False):
   # should be changed if your model stored by different convention
   startstep = 0 if not is_finetune else int(FLAGS.finetune.split('-')[-1])
 
-  image_filenames, label_filenames = get_filename_list(image_dir)
-  val_image_filenames, val_label_filenames = get_filename_list(val_dir)
-
   with tf.Graph().as_default():
     global_step = tf.Variable(0, trainable=False)
 
     # Setup reader
-    reader = Reader(mc, dc, train_dir)
-    if mc.USE_LSTM:
+    reader = Reader(cfg, image_dir, 'train')
+    if cfg.USE_LSTM:
       input_node = reader.seq_batch_node()
     else:
       input_node = reader.batch_node()
@@ -113,10 +108,10 @@ def training(FLAGS, is_finetune=False):
     # Setup pretrained initializer
     if pretrained_path is not None:
       pretrained_npy = np.load(pretrained_path)
-      mc.PRETRAINED_INITIALIZER = generate_pretrained_initializer(pretrained_npy)
+      cfg.PRETRAINED_INITIALIZER = generate_pretrained_initializer(pretrained_npy)
 
     # Build the model graph
-    model = nets_table[FLAGS.net](mc)
+    model = nets_table[FLAGS.net](cfg)
     model.build()
     train_op = model.train(global_step)
 
@@ -127,10 +122,10 @@ def training(FLAGS, is_finetune=False):
     with tf.Session() as sess:
       # Build an initialization operation to run below.
       if (is_finetune == True):
-          saver.restore(sess, finetune_ckpt)
+        saver.restore(sess, finetune_ckpt)
       else:
-          init = tf.global_variables_initializer()
-          sess.run(init)
+        init = tf.global_variables_initializer()
+        sess.run(init)
 
       # Start the queue runners.
       coord = tf.train.Coordinator()
@@ -184,8 +179,8 @@ def training(FLAGS, is_finetune=False):
         if step % 100 == 0:
           print("start validating.....")
           total_val_loss = 0.0
-          hist = np.zeros((mc.NUM_CLASSES, mc.NUM_CLASSES))
-          for test_step in range(mc.TEST_ITER):
+          hist = np.zeros((cfg.NUM_CLASSES, cfg.NUM_CLASSES))
+          for test_step in range(cfg.TEST_ITER):
             val_images_batch, val_labels_batch = sess.run([val_images, val_labels])
             val_feed_dict = {
                 model.images_node: val_images_batch,
@@ -198,10 +193,10 @@ def training(FLAGS, is_finetune=False):
                                                          feed_dict=val_feed_dict)
             total_val_loss += _val_loss
             hist += get_hist(_val_pred, _val_labels)
-          print("val loss: ", total_val_loss / mc.TEST_ITER)
+          print("val loss: ", total_val_loss / cfg.TEST_ITER)
           acc_total = np.diag(hist).sum() / hist.sum()
           iu = np.diag(hist) / (hist.sum(1) + hist.sum(0) - np.diag(hist))
-          test_summary_str = sess.run(average_summary, feed_dict={average_pl: total_val_loss / mc.TEST_ITER})
+          test_summary_str = sess.run(average_summary, feed_dict={average_pl: total_val_loss / cfg.TEST_ITER})
           acc_summary_str = sess.run(acc_summary, feed_dict={acc_pl: acc_total})
           iu_summary_str = sess.run(iu_summary, feed_dict={iu_pl: np.nanmean(iu)})
           print_hist_summery(hist)
