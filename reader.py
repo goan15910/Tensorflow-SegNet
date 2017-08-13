@@ -54,7 +54,8 @@ class Reader:
     n_instances = len(image_filenames)
 
     # Read in images for generating batch
-    with tf.variable_scope('image_reader') as scope:
+    scope_name = 'batch_input_{}'.format(self.phase)
+    with tf.variable_scope(scope_name) as scope:
       images, labels = [], []
       for i in xrange(n_instances):
         image, label = self._read_image([image_filenames[i], label_filenames[i]])
@@ -76,7 +77,8 @@ class Reader:
     n_seqs = len(image_fname_seqs)
 
     # Read in sequences for generating batch
-    with tf.variable_scope('seq_reader') as scope:
+    scope_name = 'seq_batch_input_{}'.format(self.phase)
+    with tf.variable_scope(scope_name) as scope:
       image_seqs, label_seqs = [], []
       for i in xrange(n_seqs):
         image_seq, label_seq = self._read_seq(image_fname_seqs[i], \
@@ -177,10 +179,7 @@ class Reader:
             num_threads=num_preprocess_threads,
             capacity=min_queue_examples + 3 * batch_size,
             enqueue_many=True)
-
-    # Display the training images in the visualizer.
-    tf.summary.image('images', imageT_batch)
-
+    
     return imageT_batch, labelT_batch
 
 

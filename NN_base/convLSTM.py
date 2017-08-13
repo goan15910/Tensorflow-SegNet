@@ -131,10 +131,6 @@ class ConvLSTMCell(rnn_cell.RNNCell):
         c, h = array_ops.split(state, 2, 3)
 
       # batch_size * height * width * channel
-      print "inputs: {}".format(inputs.get_shape().as_list())
-      print "state: {}".format(state.get_shape().as_list())
-      print "c: {}".format(c.get_shape().as_list())
-      print "h: {}".format(h.get_shape().as_list())
       concat = _conv([inputs, h], 4 * self._num_units, self._k_size, True, initializer=self._initializer)
 
       # i = input_gate, j = new_input, f = forget_gate, o = output_gate

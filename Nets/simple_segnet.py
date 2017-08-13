@@ -18,7 +18,8 @@ class Simple_SegNet(Autoencoder):
 
   def build(self):
     # Input normalize
-    norm1 = tf.nn.lrn(self.images_node, depth_radius=5, bias=1.0, alpha=0.0001, beta=0.75, name='norm1')
+    with tf.variable_scope('input_norm') as scope:
+      norm1 = tf.nn.lrn(self.images_node, depth_radius=5, bias=1.0, alpha=0.0001, beta=0.75, name='norm1')
 
     # Encoder
     with tf.variable_scope('encoder') as scope:

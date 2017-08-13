@@ -23,16 +23,10 @@ class Simple_LSTM_SegNet(Autoencoder):
                              initializer=self.conv_init())
     self.state = None
 
-    # Total loss initialization
-    self.total_loss = 0.0
 
-    # Logtis sequence initialization
-    self.logits_seq = []
-
-
-  def _loss(self, labels):
+  def _loss(self, logits, labels):
     """Weighted loss graph"""
-    return self._weight_loss(self.logits, labels)
+    return self._weight_loss(logits, labels)
 
 
   def build(self):
@@ -68,10 +62,14 @@ class Simple_LSTM_SegNet(Autoencoder):
         logits = tf.nn.bias_add(conv, biases, name=scope.name) # conv classifier logits
 
       # Total loss
-      self.total_loss += self._loss(self.label_seqs[:, step, ...])
+      self.total_loss += self._loss(logits, self.labels[:, step, ...])
 
       # Logits seq
-      self.logits_seq.append(logits)
+      self.logits.append(logits)
+
+    # Transpose from TNHWC to NTHWC
+    self.logits = tf.stack(self.logits)
+    self.logits = tf.transpose(self.logits, perm=[1, 0, 2, 3, 4])
 
 
   def _encoder(self, inputT, reuse):

@@ -49,7 +49,7 @@ class Autoencoder:
           tf.int64, [self.batch_size, self.seq_len, self.img_h, self.img_w, 1],
           name='label_seq_node'
       )
-      self.label_seqs = self.label_seq_node
+      self.labels = self.label_seq_node
     self.phase_train = tf.placeholder(tf.bool, name='phase_train')
 
     # Conv initializer setup
@@ -63,11 +63,11 @@ class Autoencoder:
     self.pretrained_init = mc.PRETRAINED_INITIALIZER
 
     # Logits & loss initialization
-    if not self.use_lstm:
+    if not mc.USE_LSTM:
       self.logits = None
     else:
-      self.logits_seq = None
-    self.total_loss = None
+      self.logits = []
+    self.total_loss = 0.0
 
 
   def build(self):
@@ -148,38 +148,39 @@ class Autoencoder:
   def _weight_loss(self, logits, labels):
     """ median-frequency re-weighting """
     with tf.name_scope('loss'):
-        logits = tf.reshape(logits, (-1, self.n_classes))
-        epsilon = tf.constant(value=1e-10)
-        logits = logits + epsilon
+      logits = tf.reshape(logits, (-1, self.n_classes))
+      epsilon = tf.constant(value=1e-10)
+      logits = logits + epsilon
 
-        # consturct one-hot label array
-        labels = tf.cast(labels, tf.int32)
-        label_flat = tf.reshape(labels, (-1, 1))
+      # consturct one-hot label array
+      labels = tf.cast(labels, tf.int32)
+      label_flat = tf.reshape(labels, (-1, 1))
 
-        # should be [batch ,num_classes]
-        labels = tf.reshape(tf.one_hot(label_flat, depth=self.n_classes), (-1, self.n_classes))
-        softmax = tf.nn.softmax(logits)
-        cross_entropy = -tf.reduce_sum(tf.multiply(labels * tf.log(softmax + epsilon), self.loss_weight), reduction_indices=[1])
-        cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
-        tf.add_to_collection('losses', cross_entropy_mean)
-        loss = tf.add_n(tf.get_collection('losses'), name='total_loss')
+      # should be [batch ,num_classes]
+      labels = tf.reshape(tf.one_hot(label_flat, depth=self.n_classes), (-1, self.n_classes))
+      softmax = tf.nn.softmax(logits)
+      cross_entropy = -tf.reduce_sum(tf.multiply(labels * tf.log(softmax + epsilon), self.loss_weight), reduction_indices=[1])
+      cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
+      tf.add_to_collection('losses', cross_entropy_mean)
+      loss = tf.add_n(tf.get_collection('losses'), name='total_loss')
     return loss
 
 
-  def _conv_layer(self, inputT, shape, stride=1, act=True, batch_norm=True, name=None):
+  def _conv_layer(self, inputT, shape, stride=1, \
+                  act=True, wd=None, batch_norm=True, name=None):
     in_channel = shape[2]
     out_channel = shape[3]
     k_size = shape[0]
-    if (self.pretrained_init is not None) and (name in self.pretrained_init.keys()):
-      print 'Initialize {} with pretrained weight'.format(name)
-      conv_init = self.pretrained_init[name]['conv']
-      bias_init = self.pretrained_init[name]['bias']
-    else:
-      conv_init = self.conv_init()
-      bias_init = tf.constant_initializer(0.0)
-
     with tf.variable_scope(name) as scope:
-      kernel = _variable_with_weight_decay('ort_weights', shape=shape, initializer=conv_init, wd=None)
+      if (self.pretrained_init is not None) and (name in self.pretrained_init.keys()):
+        print 'Initialize {} with pretrained weight'.format(name)
+        conv_init = self.pretrained_init[name]['conv']
+        bias_init = self.pretrained_init[name]['bias']
+      else:
+        conv_init = self.conv_init()
+        bias_init = tf.constant_initializer(0.0)
+
+      kernel = _variable_with_weight_decay('ort_weights', shape=shape, initializer=conv_init, wd=wd)
       conv = tf.nn.conv2d(inputT, kernel, [1, stride, stride, 1], padding='SAME')
       biases = _variable_on_cpu('biases', [out_channel], bias_init)
       bias = tf.nn.bias_add(conv, biases)
