@@ -14,8 +14,7 @@ class Simple_LSTM_SegNet(Autoencoder):
     Autoencoder.__init__(self, mc)
 
     # ConvLSTM parameters setup
-    self.n_state = mc.N_STATE
-    self.lstm_cell = ConvLSTMCell(self.n_state, \
+    self.lstm_cell = ConvLSTMCell(64, \
                              k_size=7, \
                              batch_size=self.batch_size, \
                              height=23, \

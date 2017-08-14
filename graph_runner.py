@@ -315,7 +315,7 @@ class Graph_Runner:
   def _viz_tensor(self, onehot_T):
     """Visualize an onehot-tensor into image"""
     valid_shape = [self.image_h, self.image_w, 1]
-    assert onehot_T.shape == valid_shape
+    assert onehot_T.shape == valid_shape, \
         "Tensor shape must be {}".format(valid_shape)
     onehot_T = onehot_T.squeeze()
     h, w = onehot_T.shape

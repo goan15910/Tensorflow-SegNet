@@ -14,8 +14,7 @@ class VGG16_LSTM_SegNet(Autoencoder):
     Autoencoder.__init__(self, mc)
 
     # ConvLSTM parameters setup
-    self.n_state = mc.N_STATE
-    self.lstm_cell = ConvLSTMCell(self.n_state, \
+    self.lstm_cell = ConvLSTMCell(512, \
                        k_size=3, \
                        batch_size=self.batch_size, \
                        height=12, \

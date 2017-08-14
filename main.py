@@ -21,7 +21,7 @@ def checkArgs():
       "Selected mode {} not supported".format(FLAGS.mode)
   if FLAGS.mode != 'test':
     print('The model is set to Testing')
-    print("check point file: %s"%FLAGS.testing)
+    print("check point file: %s"%FLAGS.test_ckpt)
     print("{} testing dir: {}".format(FLAGS.dataset, FLAGS.test_dir))
   elif FLAGS.finetune != '':
     print('The model is set to Finetune from ckpt')
