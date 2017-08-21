@@ -84,6 +84,7 @@ def _variable_with_weight_decay(name, shape, initializer, wd):
     tf.add_to_collection('losses', weight_decay)
   return var
 
+
 def writeImage(image, filename):
     """ store label data to colored image """
     Sky = [128,128,128]

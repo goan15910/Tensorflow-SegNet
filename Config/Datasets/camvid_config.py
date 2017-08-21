@@ -1,5 +1,6 @@
 from easydict import EasyDict as edict
 import numpy as np 
+import math
 
 def camvid_config(cfg):
 
@@ -14,6 +15,8 @@ def camvid_config(cfg):
   cfg.NUM_TRAIN_EXAMPLES_PER_EPOCH = 367
   cfg.NUM_TEST_EXAMPLES_PER_EPOCH = 233
   cfg.NUM_VAL_EXAMPLES_PER_EPOCH = 101
+  cfg.RAW_MAX_STEPS = cfg.NUM_TRAIN_EXAMPLES_PER_EPOCH * cfg.MAX_EPOCHS / cfg.BATCH_SIZE
+  cfg.MAX_STEPS = int(math.ceil(cfg.RAW_MAX_STEPS / 1000.) * 1000.)
   cfg.TEST_ITER = cfg.SET_ITER_FUNC(cfg.NUM_TEST_EXAMPLES_PER_EPOCH, \
                                     cfg.BATCH_SIZE)
   cfg.VAL_ITER = cfg.SET_ITER_FUNC(cfg.NUM_VAL_EXAMPLES_PER_EPOCH, \

@@ -7,7 +7,8 @@ cfg = edict()
 # Training process related constant
 cfg.BATCH_SIZE = 5
 cfg.EVAL_BATCH_SIZE = 5
-cfg.MAX_STEPS = 20000
+cfg.MAX_EPOCHS = 3000
+cfg.MAX_STEPS = None
 cfg.INITIAL_LEARNING_RATE = 0.001
 cfg.MOVING_AVERAGE_DECAY = 0.9999
 cfg.NUM_EPOCHS_PER_DECAY = 350.0      # Epochs after which learning rate decays.

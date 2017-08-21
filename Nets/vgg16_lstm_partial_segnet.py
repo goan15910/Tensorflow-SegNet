@@ -9,16 +9,16 @@ from NN_base.nn_skeleton import Autoencoder
 from NN_base.convLSTM import ConvLSTMCell, ConvGRUCell
 
 
-class VGG16_LSTM_SegNet(Autoencoder):
+class VGG16_LSTM_Partial_SegNet(Autoencoder):
   def __init__(self, mc):
     Autoencoder.__init__(self, mc)
 
     # ConvLSTM parameters setup
-    self.lstm_cell = ConvLSTMCell(512, \
+    self.lstm_cell = ConvLSTMCell(256, \
                        k_size=3, \
                        batch_size=self.batch_size, \
-                       height=12, \
-                       width=15, \
+                       height=45, \
+                       width=60, \
                        initializer=self.conv_init())
     self.state = None
 
@@ -34,13 +34,13 @@ class VGG16_LSTM_SegNet(Autoencoder):
                           bias=1.0, alpha=0.0001, beta=0.75, name='norm1')
 
       # Encoder
-      pool5, _ = self._encoder(norm1, reuse=lstm_reuse)
+      pool3, _ = self._encoder(norm1, reuse=lstm_reuse)
 
       # ConvLSTM
       with tf.variable_scope('convLSTM', reuse=lstm_reuse) as scope:
         if step == 0:
           self.state = self.lstm_cell.zero_state(self.batch_size)
-        conv_lstm_out, self.state = self.lstm_cell(pool5, self.state)
+        conv_lstm_out, self.state = self.lstm_cell(pool3, self.state)
 
       # Decoder
       conv_decode1_1 = self._decoder(conv_lstm_out, reuse=lstm_reuse)
@@ -80,32 +80,13 @@ class VGG16_LSTM_SegNet(Autoencoder):
       conv3_2 = self._conv_layer(conv3_1, [3, 3, 256, 256], name="conv3_2")
       conv3_3 = self._conv_layer(conv3_2, [3, 3, 256, 256], name="conv3_3")
       pool3, pool3_indices = self._max_pool_arg(conv3_3, 2, 2, name='pool3') 
-
-      conv4_1 = self._conv_layer(pool3, [3, 3, 256, 512], name="conv4_1")
-      conv4_2 = self._conv_layer(conv4_1, [3, 3, 512, 512], name="conv4_2")
-      conv4_3 = self._conv_layer(conv4_2, [3, 3, 512, 512], name="conv4_3")
-      pool4, pool4_indices = self._max_pool_arg(conv4_3, 2, 2, name='pool4') 
-
-      conv5_1 = self._conv_layer(pool4, [3, 3, 512, 512], name="conv5_1")
-      conv5_2 = self._conv_layer(conv5_1, [3, 3, 512, 512], name="conv5_2")
-      conv5_3 = self._conv_layer(conv5_2, [3, 3, 512, 512], name="conv5_3")
-      pool5, pool5_indices = self._max_pool_arg(conv5_3, 2, 2, name='pool5') 
-      return pool5, pool5_indices
+      
+      return pool3, pool3_indices
 
 
   def _decoder(self, inputT, reuse):
     with tf.variable_scope('decoder', reuse=reuse) as scope:
-      up5 = self._deconv_layer(inputT, [2, 2, 512, 512], [self.batch_size, 23, 30, 512], 2, "up5")
-      conv_decode5_3 = self._conv_layer(up5, [3, 3, 512, 512], act=False, name="conv_decode5_3")
-      conv_decode5_2 = self._conv_layer(conv_decode5_3, [3, 3, 512, 512], act=False, name="conv_decode5_2")
-      conv_decode5_1 = self._conv_layer(conv_decode5_2, [3, 3, 512, 512], act=False, name="conv_decode5_1")
-
-      up4 = self._deconv_layer(conv_decode5_1, [2, 2, 512, 512], [self.batch_size, 45, 60, 512], 2, "up4")
-      conv_decode4_3 = self._conv_layer(up4, [3, 3, 512, 512], act=False, name="conv_decode4_3")
-      conv_decode4_2 = self._conv_layer(conv_decode4_3, [3, 3, 512, 512], act=False, name="conv_decode4_2")
-      conv_decode4_1 = self._conv_layer(conv_decode4_2, [3, 3, 512, 256], act=False, name="conv_decode4_1")
-
-      up3 = self._deconv_layer(conv_decode4_1, [2, 2, 256, 256], [self.batch_size, 90, 120, 256], 2, "up3")
+      up3 = self._deconv_layer(inputT, [2, 2, 256, 256], [self.batch_size, 90, 120, 256], 2, "up3")
       conv_decode3_3 = self._conv_layer(up3, [3, 3, 256, 256], act=False, name="conv_decode3_3")
       conv_decode3_2 = self._conv_layer(conv_decode3_3, [3, 3, 256, 256], act=False, name="conv_decode3_2")
       conv_decode3_1 = self._conv_layer(conv_decode3_2, [3, 3, 256, 128], act=False, name="conv_decode3_1")

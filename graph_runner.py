@@ -13,6 +13,7 @@ import skimage
 import skimage.io
 from easydict import EasyDict as edict
 import imageio
+import cv2
 
 # modules
 from Utils import print_hist_summery, get_hist, per_class_acc, writeImage, generate_pretrained_initializer
@@ -37,10 +38,6 @@ class Graph_Runner:
       self.n_imgs = self.batch_size
     else:
       self.n_imgs = self.batch_size * self.seq_len
-      self.flat_logit_shape = [self.batch_size * self.seq_len, \
-                               self.image_h, self.image_w, self.n_classes]
-      self.flat_label_shape = [self.batch_size * self.seq_len, \
-                               self.image_h, self.image_w, 1]
     self.cmap = cfg.COLORMAP
     self.cnames = cfg.CLASS_NAMES
  
@@ -123,10 +120,11 @@ class Graph_Runner:
     if mode == 'train':
       self.saver = tf.train.Saver(tf.global_variables())
     elif mode == 'test':
-      var_avgs = tf.train.ExponentialMovingAverage(
-                     MOVING_AVERAGE_DECAY)
-      restore_vars = var_avgs.variables_to_restore()
-      self.saver = tf.train.Saver(restore_vars)
+      #var_avgs = tf.train.ExponentialMovingAverage(
+      #               cfg.MOVING_AVERAGE_DECAY)
+      #restore_vars = var_avgs.variables_to_restore()
+      #self.saver = tf.train.Saver(restore_vars)
+      self.saver = tf.train.Saver(tf.global_variables())
 
     # Setup session
     sess_config = tf.ConfigProto(allow_soft_placement=True)
@@ -139,7 +137,7 @@ class Graph_Runner:
       init = tf.global_variables_initializer()
       self.sess.run(init)
     elif (mode == 'test'):
-      assert test_ckpt is not None, \
+      assert self.test_ckpt is not None, \
           "Specify test ckpt to test"
       self.saver.restore(self.sess, self.test_ckpt)
 
@@ -178,18 +176,11 @@ class Graph_Runner:
     image_batch, label_batch = self.sess.run(input_queue)
 
     # Setup feed_dict
-    if not self.cfg.USE_LSTM:
-      feed_dict = {
-        self.model.images_node: image_batch,
-        self.model.labels_node: label_batch,
-        self.model.phase_train: phase_train
-      }
-    else:
-      feed_dict = {
-        self.model.image_seq_node: image_batch,
-        self.model.label_seq_node: label_batch,
-        self.model.phase_train: phase_train
-      }
+    feed_dict = {
+      self.model.images_node: image_batch,
+      self.model.labels_node: label_batch,
+      self.model.phase_train: phase_train
+    }
 
     return feed_dict
 
@@ -276,17 +267,9 @@ class Graph_Runner:
     """Visualize and save label-like onehot-image"""
     # Visualize image preds / seq preds
     viz_func = lambda x: self._viz_tensor(x)
-    if not self.cfg.USE_LSTM:
-      viz_preds = map(viz_func, preds)
-      viz_preds = np.stack(viz_preds)
-      self._save_images(viz_preds, prefix)
-    else:
-      seqs_shape = preds.shape
-      flat_shape = self.flat_label_shape
-      viz_preds = map(viz_func, \
-                      preds.reshape(flat_shape))
-      viz_preds = np.stack(viz_preds)
-      self._save_seqs(viz_preds, prefix)
+    viz_preds = map(viz_func, self._flatten(preds))
+    viz_preds = np.stack(viz_preds)
+    self._save_images(viz_preds, prefix)
 
 
   def _save_images(self, images, prefix, ext='png'):
@@ -314,9 +297,9 @@ class Graph_Runner:
 
   def _viz_tensor(self, onehot_T):
     """Visualize an onehot-tensor into image"""
-    valid_shape = [self.image_h, self.image_w, 1]
+    valid_shape = (self.image_h, self.image_w, 1)
     assert onehot_T.shape == valid_shape, \
-        "Tensor shape must be {}".format(valid_shape)
+        "Tensor shape must be {}, but get {}".format(valid_shape, onehot_T.shape)
     onehot_T = onehot_T.squeeze()
     h, w = onehot_T.shape
     rgb = np.zeros((h, w, 3))
@@ -324,6 +307,18 @@ class Graph_Runner:
       rgb[onehot_T==i] = color
     return np.uint8(rgb)
 
+  
+  def _flatten(self, inputT):
+    """Transform inputT into NHWC format"""
+    assert len(inputT.shape) in (4, 5), \
+        "Requires NHWC / NTHWC format"
+    if len(inputT.shape) == 4:
+      return inputT
+    elif len(inputT.shape) == 5:
+      N, T, H, W, C = inputT.shape
+      new_shape = (N*T, H, W, C)
+      return inputT.reshape(new_shape)
+  
 
   def _print_train_info(self, step, loss_value, duration):
     format_str = ('{0}: step {1}, loss = {2:.2f} ({3:.1f}'
@@ -353,10 +348,8 @@ class Graph_Runner:
       # Print train info
       if step % 10 == 0:
         self._print_train_info(step, loss_value, duration)
-        if cfg.USE_LSTM:
-          logits = logits.reshape(self.flat_logit_shape)
-          train_labels = train_labels.reshape(self.flat_label_shape)
-        per_class_acc(logits, train_labels)
+        per_class_acc(self._flatten(logits), \
+                      self._flatten(train_labels))
 
       # Validation & Write summary
       if step % 100 == 0:
@@ -394,16 +387,16 @@ class Graph_Runner:
       feed_dict = self._feed_dict(input_queue, \
                                   phase_train=False)
       start_time = time.time()
-      loss, pred, labels = self._forward(feed_dict)
+      loss, preds, labels = self._forward(feed_dict)
       duration += time.time() - start_time
       total_loss += loss
       if save_predict:
-        self._save_onehot(pred, 'pred_{}'.format(i))
+        arg_preds = np.argmax(preds, axis=-1)
+        arg_preds = np.expand_dims(arg_preds, axis=-1)
+        self._save_onehot(arg_preds, 'pred_{}'.format(i))
         self._save_onehot(labels, 'label_{}'.format(i))
-      if cfg.USE_LSTM:
-        pred = pred.reshape(self.flat_logit_shape)
-        labels = labels.reshape(self.flat_label_shape)
-      hist += get_hist(pred, labels)
+      hist += get_hist(self._flatten(preds), \
+                       self._flatten(labels))
 
     # Compute loss, acc, mean_iu, mean_fps
     avg_loss = total_loss / forward_iter 

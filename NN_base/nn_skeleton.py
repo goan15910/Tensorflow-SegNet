@@ -12,45 +12,46 @@ from Utils import _variable_with_weight_decay, _variable_on_cpu, _add_loss_summa
 
 
 class Autoencoder:
-  """Base class of encoder-decoder NN skeleton"""
+  """Base class of encoder-decoder structure"""
   def __init__(self, mc):
     # Configuration setup
     self.n_classes = mc.NUM_CLASSES
     self.loss_weight = mc.LOSS_WEIGHT
     self.init_lr = mc.INITIAL_LEARNING_RATE
     self.moving_avg_decay = mc.MOVING_AVERAGE_DECAY
-    self.img_h = mc.IMAGE_HEIGHT
-    self.img_w = mc.IMAGE_WIDTH
-    self.img_c = mc.IMAGE_DEPTH
     self.batch_size = mc.BATCH_SIZE
     self.use_lstm = mc.USE_LSTM
     self.seq_len = mc.SEQUENCE_LENGTH
     if self.use_lstm:
       assert self.seq_len is not None, \
           "To use LSTM, you need to specify sequence length!"
+    
+    # Shape setup
+    N = mc.BATCH_SIZE
+    T = mc.SEQUENCE_LENGTH
+    H = mc.IMAGE_HEIGHT
+    W = mc.IMAGE_WIDTH
+    C = mc.IMAGE_DEPTH
+    if not self.use_lstm:
+      self.images_shape = (N, H, W, C)
+      self.labels_shape = (N, H, W, 1)
+    else:
+      self.images_shape = (N, T, H, W, C)
+      self.labels_shape = (N, T, H, W, 1)
 
     # Graph placeholder setup
-    if not self.use_lstm:
-      self.images_node = tf.placeholder(
-          tf.float32, [self.batch_size, self.img_h, self.img_w, self.img_c],
-          name='images_node'
-      )
-      self.labels_node = tf.placeholder(
-          tf.int64, [self.batch_size, self.img_h, self.img_w, 1],
-          name='labels_node'
-      )
-      self.labels = self.labels_node
-    else:
-      self.image_seq_node = tf.placeholder(
-          tf.float32, [self.batch_size, self.seq_len, self.img_h, self.img_w, self.img_c],
-          name='image_seq_node'
-      )
-      self.label_seq_node = tf.placeholder(
-          tf.int64, [self.batch_size, self.seq_len, self.img_h, self.img_w, 1],
-          name='label_seq_node'
-      )
-      self.labels = self.label_seq_node
+    self.images_node = tf.placeholder(
+        tf.float32, self.images_shape,
+        name='images_node'
+    )
+    self.labels_node = tf.placeholder(
+        tf.int64, self.labels_shape,
+        name='labels_node'
+    )
+    self.labels = self.labels_node
     self.phase_train = tf.placeholder(tf.bool, name='phase_train')
+    # TODO: Add reweight_loss pl to graph to enable softmax loss
+    # self.reweight_loss = tf.placeholder(tf.bool, name='reweight_loss')
 
     # Conv initializer setup
     assert mc.CONV_INIT_TYPE in ['msra', 'orthogonal']
@@ -62,11 +63,13 @@ class Autoencoder:
     # Pretrained weight initializer setup
     self.pretrained_init = mc.PRETRAINED_INITIALIZER
 
-    # Logits & loss initialization
-    if not mc.USE_LSTM:
+    # Logits
+    if not self.use_lstm:
       self.logits = None
     else:
       self.logits = []
+
+    # Total loss
     self.total_loss = 0.0
 
 
@@ -75,15 +78,16 @@ class Autoencoder:
     raise NotImplementedError
 
 
-  def loss(self, labels):
+  def _loss(self, logits, labels, weighted=True):
     """Loss graph"""
-    raise NotImplementedError
+    if weighted:
+      return self._weight_loss(logits, labels)
+    else:
+      return self._softmax_loss(logits, labels)
 
 
   def train(self, global_step):
     """Train graph"""
-    total_sample = 274
-    num_batches_per_epoch = 274/1
     lr = self.init_lr # Fix lr
     loss_averages_op = _add_loss_summaries(self.total_loss)
 
@@ -131,6 +135,7 @@ class Autoencoder:
         return tf.constant(scale * q[:shape[0], :shape[1]], dtype=tf.float32)
       return _initializer
 
+
   def _softmax_loss(self, logits, labels):
     """Mean cross entropy without re-weighting"""
     # Calculate the average cross entropy loss across the batch.
@@ -166,7 +171,7 @@ class Autoencoder:
     return loss
 
 
-  def _conv_layer(self, inputT, shape, stride=1, \
+  def _conv_layer(self, inputT, shape, stride=1, init=None, \
                   act=True, wd=None, batch_norm=True, name=None):
     in_channel = shape[2]
     out_channel = shape[3]
@@ -176,11 +181,14 @@ class Autoencoder:
         print 'Initialize {} with pretrained weight'.format(name)
         conv_init = self.pretrained_init[name]['conv']
         bias_init = self.pretrained_init[name]['bias']
-      else:
+      elif init is None:
         conv_init = self.conv_init()
         bias_init = tf.constant_initializer(0.0)
+      else:
+        conv_init = init
+        bias_init = tf.constant_initializer(0.0)
 
-      kernel = _variable_with_weight_decay('ort_weights', shape=shape, initializer=conv_init, wd=wd)
+      kernel = _variable_with_weight_decay('weights', shape=shape, initializer=conv_init, wd=wd)
       conv = tf.nn.conv2d(inputT, kernel, [1, stride, stride, 1], padding='SAME')
       biases = _variable_on_cpu('biases', [out_channel], bias_init)
       bias = tf.nn.bias_add(conv, biases)
@@ -244,3 +252,22 @@ class Autoencoder:
             lambda: tf.contrib.layers.batch_norm(inputT, is_training=False,\
                              updates_collections=None, center=False, \
                              scope="batch_norm", reuse=True))
+
+
+  def _resize_labels(self, inputT, k_size, stride, name):
+    with tf.variable_scope('label_resize') as scope:
+      input_shape = inputT.get_shape().as_list()
+      N, T, H, W, C = input_shape
+      new_H = int(ceil(H / float(stride)))
+      new_W = int(ceil(W / float(stride)))
+      if len(input_shape) == 4:
+        flat_shape = input_shape
+        new_shape = (N, new_H, new_W, C)
+      elif len(input_shape) == 5:
+        flat_shape = (N*T, H, W, C)
+        new_shape = (N, T, new_H, new_W, C)
+      labels = tf.reshape(inputT, flat_shape)
+      labels = self._max_pool(tf.to_float(labels),
+                              k_size, stride, 'pooled_labels')
+      labels = tf.reshape(labels, new_shape)
+      return tf.cast(labels, tf.int64, name=name)

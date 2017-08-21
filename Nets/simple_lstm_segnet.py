@@ -35,7 +35,7 @@ class Simple_LSTM_SegNet(Autoencoder):
 
       # Input normalize
       with tf.variable_scope('norm_input', reuse=lstm_reuse) as scope:
-        norm1 = tf.nn.lrn(self.image_seq_node[:, step, ...], depth_radius=5, \
+        norm1 = tf.nn.lrn(self.images_node[:, step, ...], depth_radius=5, \
                           bias=1.0, alpha=0.0001, beta=0.75, name='norm1')
 
       # Encoder

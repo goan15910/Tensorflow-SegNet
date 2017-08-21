@@ -48,27 +48,27 @@ class VGG16_SegNet(Autoencoder):
     # Decoder
     with tf.variable_scope('decoder') as scope:
       up5 = self._deconv_layer(pool5, [2, 2, 512, 512], [self.batch_size, 23, 30, 512], 2, "up5")
-      conv_decode5_3 = self._conv_layer(up5, [3, 3, 512, 512], False, name="conv_decode5_3")
-      conv_decode5_2 = self._conv_layer(conv_decode5_3, [3, 3, 512, 512], False, name="conv_decode5_2")
-      conv_decode5_1 = self._conv_layer(conv_decode5_2, [3, 3, 512, 512], False, name="conv_decode5_1")
+      conv_decode5_3 = self._conv_layer(up5, [3, 3, 512, 512], act=False, name="conv_decode5_3")
+      conv_decode5_2 = self._conv_layer(conv_decode5_3, [3, 3, 512, 512], act=False, name="conv_decode5_2")
+      conv_decode5_1 = self._conv_layer(conv_decode5_2, [3, 3, 512, 512], act=False, name="conv_decode5_1")
 
       up4 = self._deconv_layer(conv_decode5_1, [2, 2, 512, 512], [self.batch_size, 45, 60, 512], 2, "up4")
-      conv_decode4_3 = self._conv_layer(up4, [3, 3, 512, 512], False, name="conv_decode4_3")
-      conv_decode4_2 = self._conv_layer(conv_decode4_3, [3, 3, 512, 512], False, name="conv_decode4_2")
-      conv_decode4_1 = self._conv_layer(conv_decode4_2, [3, 3, 512, 256], False, name="conv_decode4_1")
+      conv_decode4_3 = self._conv_layer(up4, [3, 3, 512, 512], act=False, name="conv_decode4_3")
+      conv_decode4_2 = self._conv_layer(conv_decode4_3, [3, 3, 512, 512], act=False, name="conv_decode4_2")
+      conv_decode4_1 = self._conv_layer(conv_decode4_2, [3, 3, 512, 256], act=False, name="conv_decode4_1")
 
       up3 = self._deconv_layer(conv_decode4_1, [2, 2, 256, 256], [self.batch_size, 90, 120, 256], 2, "up3")
-      conv_decode3_3 = self._conv_layer(up3, [3, 3, 256, 256], False, name="conv_decode3_3")
-      conv_decode3_2 = self._conv_layer(conv_decode3_3, [3, 3, 256, 256], False, name="conv_decode3_2")
-      conv_decode3_1 = self._conv_layer(conv_decode3_2, [3, 3, 256, 128], False, name="conv_decode3_1")
+      conv_decode3_3 = self._conv_layer(up3, [3, 3, 256, 256], act=False, name="conv_decode3_3")
+      conv_decode3_2 = self._conv_layer(conv_decode3_3, [3, 3, 256, 256], act=False, name="conv_decode3_2")
+      conv_decode3_1 = self._conv_layer(conv_decode3_2, [3, 3, 256, 128], act=False, name="conv_decode3_1")
 
       up2 = self._deconv_layer(conv_decode3_1, [2, 2, 128, 128], [self.batch_size, 180, 240, 128], 2, "up2")
-      conv_decode2_2 = self._conv_layer(up2, [3, 3, 128, 128], False, name="conv_decode2_2")
-      conv_decode2_1 = self._conv_layer(conv_decode2_2, [3, 3, 128, 64], False, name="conv_decode2_1")
+      conv_decode2_2 = self._conv_layer(up2, [3, 3, 128, 128], act=False, name="conv_decode2_2")
+      conv_decode2_1 = self._conv_layer(conv_decode2_2, [3, 3, 128, 64], act=False, name="conv_decode2_1")
 
       up1 = self._deconv_layer(conv_decode2_1, [2, 2, 64, 64], [self.batch_size, 360, 480, 64], 2, "up1")
-      conv_decode1_2 = self._conv_layer(up1, [3, 3, 64, 64], False, name="conv_decode1_2")
-      conv_decode1_1 = self._conv_layer(conv_decode1_2, [3, 3, 64, 64], False, name="conv_decode1_1")
+      conv_decode1_2 = self._conv_layer(up1, [3, 3, 64, 64], act=False, name="conv_decode1_2")
+      conv_decode1_1 = self._conv_layer(conv_decode1_2, [3, 3, 64, 64], act=False, name="conv_decode1_1")
 
     # Classification
     # output predicted class number 
