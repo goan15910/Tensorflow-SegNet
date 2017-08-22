@@ -13,7 +13,9 @@ model_config_func_table = {
     'simple_lstm_segnet': simple_lstm_segnet_config, \
     'vgg16_lstm_segnet': vgg16_lstm_segnet_config, \
     'vgg16_lstm_mr_segnet': vgg16_lstm_segnet_config, \
+    'vgg16_lstm_lr_segnet': vgg16_lstm_segnet_config, \
     'vgg16_lstm_partial_segnet': vgg16_lstm_segnet_config, \
+    'vgg16_fs_mr_segnet': vgg16_lstm_segnet_config, \
 }
 
 def add_model_config(model_name, cfg):

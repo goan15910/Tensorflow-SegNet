@@ -10,13 +10,13 @@ You can follow the issue here: https://github.com/tensorflow/tensorflow/issues/2
 for model detail, please go to https://github.com/alexgkendall/caffe-segnet
 
 # Requirement
-tensorflow r1.2
-Pillow (optional, for write label image)
-scikit-image
-easydict
-ImageIO
-numpy
-opencv
+tensorflow r1.2 <br />
+Pillow (optional, for write label image) <br />
+scikit-image <br />
+easydict <br />
+ImageIO <br />
+numpy <br />
+opencv <br />
 
 # Usage
 training:

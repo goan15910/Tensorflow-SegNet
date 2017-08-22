@@ -271,3 +271,21 @@ class Autoencoder:
                               k_size, stride, 'pooled_labels')
       labels = tf.reshape(labels, new_shape)
       return tf.cast(labels, tf.int64, name=name)
+
+
+  def _cff_layer(self, lr_T, hr_T, labels):
+    """
+       Cascade feature fusion unit, 
+       Reference: Hengshuang Zhao et al., 
+                  https://arxiv.org/abs/1704.08545
+    """
+    # TODO
+    # + upsample low-res inputT
+    #   - classification (conv-classifier + softmax)
+    #   - dilated conv with BN, (dilation1, 3*3)
+    
+    # project high-res inputT (1*1 conv with BN)
+
+    # Element-wise addition (low-res + high-res)
+    # ReLU
+    pass

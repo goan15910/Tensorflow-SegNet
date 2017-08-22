@@ -418,8 +418,10 @@ class Graph_Runner:
     if verbose:
       if phase_val:
         print "val_loss: {}".format(avg_loss)
+      else:
+        print "Accuracy: {0}, MeanIU: {1}, FPS: {2}".format(total_acc, mean_iu, mean_fps)
       print_hist_summery(hist)
-    
+ 
 
   def _extract(self):
     raise NotImplementedError
