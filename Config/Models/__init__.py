@@ -15,6 +15,7 @@ model_config_func_table = {
     'vgg16_lstm_mr_segnet': vgg16_lstm_segnet_config, \
     'vgg16_lstm_lr_segnet': vgg16_lstm_segnet_config, \
     'vgg16_lstm_partial_segnet': vgg16_lstm_segnet_config, \
+    'vgg16_naive_fs_mr_segnet': vgg16_lstm_segnet_config, \
     'vgg16_fs_mr_segnet': vgg16_lstm_segnet_config, \
 }
 

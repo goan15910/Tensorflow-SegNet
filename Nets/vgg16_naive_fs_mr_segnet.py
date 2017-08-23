@@ -9,17 +9,13 @@ from NN_base.nn_skeleton import Autoencoder
 from NN_base.convLSTM import ConvLSTMCell, ConvGRUCell
 
 
-class VGG16_FS_MR_SegNet(Autoencoder):
+class VGG16_NAIVE_FS_MR_SegNet(Autoencoder):
   def __init__(self, mc):
     Autoencoder.__init__(self, mc)
 
     # Setup downsample params
     self.down_ksize = 2
     self.down_stride = 2
-    self.mr_labels = self._resize_labels(self.labels, \
-                                         self.down_ksize, \
-                                         self.down_stride, \
-                                         'mr_labels')
     
     # ConvLSTM parameters setup
     self.lstm_cell = ConvLSTMCell(512, \
@@ -37,8 +33,8 @@ class VGG16_FS_MR_SegNet(Autoencoder):
       lstm_reuse = True if step > 0 else None
 
       # Approx-Encoder
-      encoder_out, encoder_loss = self._approx_encoder(self.images_node[:, step, ...], \
-                                                       step, lstm_reuse)
+      encoder_out = self._approx_encoder(self.images_node[:, step, ...], \
+                                         step, lstm_reuse)
 
       # ConvLSTM
       with tf.variable_scope('convLSTM', reuse=lstm_reuse) as scope:
@@ -60,7 +56,6 @@ class VGG16_FS_MR_SegNet(Autoencoder):
                                   name=scope.name)
 
       # Total loss
-      self.total_loss += encoder_loss
       self.total_loss += self._loss(logits, self.labels[:, step, ...])
      
       # Logits seq
@@ -93,21 +88,12 @@ class VGG16_FS_MR_SegNet(Autoencoder):
     with tf.variable_scope('cond_up', reuse=cond_up_reuse) as scope:
       if step == 0:
         encoder_out = pool5
-        encoder_loss = 0.0
       else:
         encoder_out = self._deconv_layer(pool5, [2, 2, 512, 512], \
                                          [self.batch_size, 12, 15, 512], 2, \
                                          "encoder_up")
-        mr_logits = self._conv_layer(encoder_out,
-                                     [1, 1, 64, self.n_classes],
-                                     init=self._msra_initializer(1, 64),
-                                     act=False,
-                                     wd=0.0005,
-                                     batch_norm=False,
-                                     name='conv_classifier')
-        encoder_loss = self._loss(mr_logits, self.mr_labels[:, step, ...])
     
-    return encoder_out, encoder_loss
+    return encoder_out
 
 
   def _encoder(self, inputT, reuse):
