@@ -99,8 +99,8 @@ class VGG16_FS_MR_SegNet(Autoencoder):
                                          [self.batch_size, 12, 15, 512], 2, \
                                          "encoder_up")
         mr_logits = self._conv_layer(encoder_out,
-                                     [1, 1, 64, self.n_classes],
-                                     init=self._msra_initializer(1, 64),
+                                     [1, 1, 512, self.n_classes],
+                                     init=self._msra_initializer(1, 512),
                                      act=False,
                                      wd=0.0005,
                                      batch_norm=False,
