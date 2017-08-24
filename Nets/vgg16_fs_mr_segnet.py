@@ -16,9 +16,10 @@ class VGG16_FS_MR_SegNet(Autoencoder):
     # Setup downsample params
     self.down_ksize = 2
     self.down_stride = 2
+
+    # Setup mr labels
     self.mr_labels = self._resize_labels(self.labels, \
-                                         self.down_ksize, \
-                                         self.down_stride, \
+                                         (12, 15), \
                                          'mr_labels')
     
     # ConvLSTM parameters setup

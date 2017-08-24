@@ -254,12 +254,11 @@ class Autoencoder:
                              scope="batch_norm", reuse=True))
 
 
-  def _resize_labels(self, inputT, k_size, stride, name):
+  def _resize_labels(self, inputT, size, name):
     with tf.variable_scope('label_resize') as scope:
       input_shape = inputT.get_shape().as_list()
       N, T, H, W, C = input_shape
-      new_H = int(ceil(H / float(stride)))
-      new_W = int(ceil(W / float(stride)))
+      new_H, new_W = size
       if len(input_shape) == 4:
         flat_shape = input_shape
         new_shape = (N, new_H, new_W, C)
@@ -267,10 +266,9 @@ class Autoencoder:
         flat_shape = (N*T, H, W, C)
         new_shape = (N, T, new_H, new_W, C)
       labels = tf.reshape(inputT, flat_shape)
-      labels = self._max_pool(tf.to_float(labels),
-                              k_size, stride, 'pooled_labels')
+      labels = tf.image.resize_nearest_neighbor(labels, (new_H, new_W))
       labels = tf.reshape(labels, new_shape)
-      return tf.cast(labels, tf.int64, name=name)
+      return labels
 
 
   def _cff_layer(self, lr_T, hr_T, labels):
