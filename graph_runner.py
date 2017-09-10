@@ -269,9 +269,14 @@ class Graph_Runner:
     """Visualize and save label-like onehot-image"""
     # Visualize image preds / seq preds
     viz_func = lambda x: self._viz_tensor(x)
+    preds_shape = preds.shape
     viz_preds = map(viz_func, self._flatten(preds))
     viz_preds = np.stack(viz_preds)
-    self._save_images(viz_preds, prefix)
+    if not self.cfg.USE_LSTM:
+      self._save_images(viz_preds, prefix)
+    else:
+      viz_preds = viz_preds.reshape(preds_shape)
+      self._save_seqs(viz_preds, prefix)
 
 
   def _save_images(self, images, prefix, ext='png'):
