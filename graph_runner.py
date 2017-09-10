@@ -127,7 +127,9 @@ class Graph_Runner:
       self.saver = tf.train.Saver(tf.global_variables())
 
     # Setup session
-    sess_config = tf.ConfigProto(allow_soft_placement=True)
+    sess_config = tf.ConfigProto()
+    sess_config.gpu_option.allow_soft_placement = True
+    sess_config.gpu_option.allow_growth = True
     self.sess = tf.Session(config=sess_config)
 
     # Initialize graph
